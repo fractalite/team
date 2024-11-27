@@ -9,9 +9,10 @@ export const supabaseService = {
         .from('teams')
         .select(`
           *,
-          team_members (
+          members:team_members (
             user_id,
-            profiles (
+            profile:profiles (
+              id,
               email,
               full_name,
               avatar_url
@@ -20,7 +21,18 @@ export const supabaseService = {
         `);
 
       if (error) throw error;
-      return data || [];
+      
+      // Transform the data to match our frontend types
+      const teams = data?.map(team => ({
+        ...team,
+        members: team.members?.map(member => ({
+          team_id: team.id,
+          user_id: member.user_id,
+          profile: member.profile
+        })) || []
+      })) || [];
+
+      return teams;
     } catch (error) {
       console.error('Error fetching teams:', error);
       return [];

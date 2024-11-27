@@ -28,7 +28,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto py-6">
+        <main className="container mx-auto p-6">
           <Welcome />
         </main>
       </div>
@@ -39,7 +39,7 @@ export default function App() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto p-6">
         <Tabs defaultValue="projects" className="space-y-6">
           <div className="flex justify-center">
             <TabsList className="inline-flex">
