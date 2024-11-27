@@ -28,7 +28,7 @@ export function TeamCard({ team }: TeamCardProps) {
       </div>
       <p className="text-sm text-muted-foreground mb-4">{team.description}</p>
       <div className="flex -space-x-2">
-        {team.members.map((member) => (
+        {team.members?.map((member) => (
           <Avatar key={member.user_id} className="h-8 w-8 border-2 border-background">
             <AvatarImage src={member.profile?.avatar_url} alt={member.profile?.full_name} />
             <AvatarFallback>{member.profile?.full_name?.[0] || 'U'}</AvatarFallback>
