@@ -59,7 +59,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Get all team members
   const allMembers = teams
     .filter(team => team && team.members)
-    .flatMap(team => team.members || []);
+    .flatMap(team => team.members || [])
+    .filter((member, index, self) => 
+      // Remove duplicates by user_id
+      index === self.findIndex((m) => m.user_id === member.user_id)
+    );
 
   // Filter tasks
   const projectTasks = tasks
@@ -118,8 +122,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               <SelectContent>
                 <SelectItem key="all" value="ALL">All Assignees</SelectItem>
                 <SelectItem key="unassigned" value="UNASSIGNED">Unassigned</SelectItem>
-                {allMembers.map((member, index) => (
-                  <SelectItem key={index} value={member.id}>
+                {allMembers.map((member) => (
+                  <SelectItem key={member.user_id} value={member.id}>
                     {member.name}
                   </SelectItem>
                 ))}
