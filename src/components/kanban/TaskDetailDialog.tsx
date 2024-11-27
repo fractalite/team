@@ -33,7 +33,13 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
   const teams = useStore((state) => state.teams);
   const profile = useStore((state) => state.profile);
 
-  const allMembers = teams.flatMap((team) => team.members);
+  const allMembers = teams
+    .filter(team => team && team.members)
+    .flatMap(team => team.members || [])
+    .filter((member, index, self) => 
+      // Remove duplicates by user_id
+      index === self.findIndex((m) => m.user_id === member.user_id)
+    );
 
   const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
@@ -199,22 +205,24 @@ export function TaskDetailDialog({ task, open, onOpenChange }: TaskDetailDialogP
                       <CommandInput placeholder="Search team members..." />
                       <CommandEmpty>No members found.</CommandEmpty>
                       <CommandGroup>
-                        {allMembers.filter(member => member && member.profile).map((member) => (
-                          <CommandItem
-                            key={member.user_id}
-                            onSelect={() => handleMention({
-                              id: member.user_id,
-                              name: member.profile?.full_name || 'Unknown'
-                            })}
-                            className="flex items-center gap-2"
-                          >
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={member.profile?.avatar_url} />
-                              <AvatarFallback>{(member.profile?.full_name || 'U')[0]}</AvatarFallback>
-                            </Avatar>
-                            {member.profile?.full_name || 'Unknown User'}
-                          </CommandItem>
-                        ))}
+                        {allMembers
+                          .filter(member => member && member.profile)
+                          .map((member) => (
+                            <CommandItem
+                              key={member.user_id}
+                              onSelect={() => handleMention({
+                                id: member.user_id,
+                                name: member.profile?.full_name || 'Unknown'
+                              })}
+                              className="flex items-center gap-2"
+                            >
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={member.profile?.avatar_url} />
+                                <AvatarFallback>{(member.profile?.full_name || 'U')[0]}</AvatarFallback>
+                              </Avatar>
+                              {member.profile?.full_name || 'Unknown User'}
+                            </CommandItem>
+                          ))}
                       </CommandGroup>
                     </Command>
                   </PopoverContent>
