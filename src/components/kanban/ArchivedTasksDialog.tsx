@@ -21,9 +21,15 @@ const priorityConfig = {
 export function ArchivedTasksDialog({ projectId, open, onOpenChange }: ArchivedTasksDialogProps) {
   const tasks = useStore((state) => state.tasks);
 
+  // Handle both database (project_id) and UI (projectId) field names
   const archivedTasks = tasks.filter(
-    task => task.projectId === projectId && task.status === 'ARCHIVED'
-  ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    task => (task.projectId || task.project_id) === projectId && task.status === 'ARCHIVED'
+  ).sort((a, b) => {
+    // Safely handle date fields with fallback to current date
+    const dateA = a.createdAt || a.created_at || new Date().toISOString();
+    const dateB = b.createdAt || b.created_at || new Date().toISOString();
+    return new Date(dateB).getTime() - new Date(dateA).getTime();
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,6 +42,7 @@ export function ArchivedTasksDialog({ projectId, open, onOpenChange }: ArchivedT
           <div className="space-y-4">
             {archivedTasks.map((task) => {
               const PriorityIcon = priorityConfig[task.priority].icon;
+              const createdDate = task.createdAt || task.created_at;
               
               return (
                 <Card key={task.id} className="p-4">
@@ -55,9 +62,11 @@ export function ArchivedTasksDialog({ projectId, open, onOpenChange }: ArchivedT
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
-                  <div className="text-xs text-muted-foreground">
-                    Archived on {format(new Date(task.createdAt), 'MMM d, yyyy')}
-                  </div>
+                  {createdDate && (
+                    <div className="text-xs text-muted-foreground">
+                      Archived on {format(new Date(createdDate), 'MMM d, yyyy')}
+                    </div>
+                  )}
                 </Card>
               );
             })}
