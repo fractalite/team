@@ -25,6 +25,21 @@ const COLUMNS: { id: Status; title: string }[] = [
   { id: 'DONE', title: 'Done' },
 ];
 
+const PRIORITIES: { value: Priority | 'ALL'; label: string }[] = [
+  { value: 'ALL', label: 'All Priorities' },
+  { value: 'URGENT', label: 'Urgent' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'LOW', label: 'Low' },
+];
+
+const DUE_DATE_OPTIONS: { value: 'ALL' | 'OVERDUE' | 'TODAY' | 'UPCOMING'; label: string }[] = [
+  { value: 'ALL', label: 'All Dates' },
+  { value: 'OVERDUE', label: 'Overdue' },
+  { value: 'TODAY', label: 'Due Today' },
+  { value: 'UPCOMING', label: 'Upcoming' },
+];
+
 interface KanbanBoardProps {
   projectId: string;
 }
@@ -85,11 +100,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 <SelectValue placeholder="Filter by priority" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Priorities</SelectItem>
-                <SelectItem value="URGENT">Urgent</SelectItem>
-                <SelectItem value="HIGH">High</SelectItem>
-                <SelectItem value="MEDIUM">Medium</SelectItem>
-                <SelectItem value="LOW">Low</SelectItem>
+                {PRIORITIES.map((priority, index) => (
+                  <SelectItem key={index} value={priority.value}>
+                    {priority.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -101,10 +116,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 <SelectValue placeholder="Filter by assignee" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Assignees</SelectItem>
-                <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
-                {allMembers.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
+                <SelectItem key="all" value="ALL">All Assignees</SelectItem>
+                <SelectItem key="unassigned" value="UNASSIGNED">Unassigned</SelectItem>
+                {allMembers.map((member, index) => (
+                  <SelectItem key={index} value={member.id}>
                     {member.name}
                   </SelectItem>
                 ))}
@@ -119,10 +134,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 <SelectValue placeholder="Filter by due date" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All Dates</SelectItem>
-                <SelectItem value="OVERDUE">Overdue</SelectItem>
-                <SelectItem value="TODAY">Due Today</SelectItem>
-                <SelectItem value="UPCOMING">Upcoming</SelectItem>
+                {DUE_DATE_OPTIONS.map((option, index) => (
+                  <SelectItem key={index} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -156,7 +172,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 // Due date filter
                 if (dueDateFilter !== 'ALL' && task.due_date) {
                   const today = startOfDay(new Date());
-                  const dueDate = startOfDay(new Date(task.due_date));
+                  const dueDate = new Date(task.due_date);
 
                   switch (dueDateFilter) {
                     case 'OVERDUE':
@@ -179,14 +195,14 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       </DndContext>
 
       {archivedTasksCount > 0 && (
-        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
-          <Archive className="h-4 w-4" />
+        <div className="flex justify-end">
           <Button
-            variant="link"
-            className="h-auto p-0 text-muted-foreground hover:text-foreground"
+            variant="outline"
+            className="gap-2"
             onClick={() => setShowArchived(true)}
           >
-            View {archivedTasksCount} archived task{archivedTasksCount !== 1 ? 's' : ''}
+            <Archive className="w-4 h-4" />
+            View Archived ({archivedTasksCount})
           </Button>
         </div>
       )}
