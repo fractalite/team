@@ -92,7 +92,7 @@ interface Store {
   deleteCategory: (categoryId: string) => void;
   updateTask: (task: Task) => void;
   updateTaskStatus: (taskId: string, status: Status) => void;
-  addTeamMember: (teamId: string, member: TeamMember) => void;
+  addTeamMember: (teamId: string, member: TeamMember) => Promise<TeamMember>;
   addTaskComment: (taskId: string, comment: Comment) => void;
   deleteTaskComment: (taskId: string, commentId: string) => void;
   removeTask: (taskId: string) => void;
@@ -108,7 +108,16 @@ export const useStore = create<Store>((set) => ({
   categories: [],
 
   setProfile: (profile) => set({ profile }),
-  setTeams: (teams) => set({ teams }),
+  setTeams: (teams) => set({ 
+    teams: teams.map(team => ({
+      ...team,
+      members: team.team_members?.map(member => ({
+        team_id: team.id,
+        user_id: member.user_id,
+        profile: member.profiles
+      })) || []
+    }))
+  }),
   setProjects: (projects) => set({ projects }),
   setTasks: (tasks) => set({ tasks }),
   setCategories: (categories) => set({ categories }),
@@ -165,13 +174,61 @@ export const useStore = create<Store>((set) => ({
     ),
   })),
   
-  addTeamMember: (teamId, member) => set((state) => ({
-    teams: state.teams.map((team) =>
-      team.id === teamId
-        ? { ...team, members: [...team.members, member] }
-        : team
-    ),
-  })),
+  addTeamMember: async (teamId, member) => {
+    try {
+      // Check if member already exists
+      const { data: existingMember } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('team_id', teamId)
+        .eq('user_id', member.user_id)
+        .single();
+
+      if (existingMember) {
+        throw new Error('You are already a member of this team');
+      }
+
+      // Add member to database
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: teamId,
+          user_id: member.user_id,
+        })
+        .select(`
+          user_id,
+          profiles (
+            id,
+            email,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      const newMember = {
+        team_id: teamId,
+        user_id: data.user_id,
+        profile: data.profiles
+      };
+
+      // Update local state
+      set((state) => ({
+        teams: state.teams.map((team) =>
+          team.id === teamId
+            ? { ...team, members: [...(team.members || []), newMember] }
+            : team
+        ),
+      }));
+
+      return newMember;
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      throw error;
+    }
+  },
   
   addTaskComment: (taskId, comment) => set((state) => ({
     tasks: state.tasks.map((task) =>

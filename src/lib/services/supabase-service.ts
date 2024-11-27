@@ -1,17 +1,21 @@
 import { supabase } from '@/lib/supabase';
-import { Team, Project, Task, Comment, Category, TeamMember } from '@/lib/store';
+import { Team, Project, Task, Category, Profile, TeamMember } from '@/lib/store';
 
 export const supabaseService = {
   // Teams
   async getTeams() {
     try {
-      const { data, error } = await supabase
+      const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select(`
-          *,
-          members:team_members (
+          id,
+          name,
+          description,
+          created_at,
+          updated_at,
+          team_members!left (
             user_id,
-            profile:profiles (
+            profiles!inner (
               id,
               email,
               full_name,
@@ -20,16 +24,16 @@ export const supabaseService = {
           )
         `);
 
-      if (error) throw error;
-      
+      if (teamsError) throw teamsError;
+
       // Transform the data to match our frontend types
-      const teams = data?.map(team => ({
+      const teams = teamsData?.map(team => ({
         ...team,
-        members: team.members?.map(member => ({
+        members: (team.team_members || []).map(member => ({
           team_id: team.id,
           user_id: member.user_id,
-          profile: member.profile
-        })) || []
+          profile: member.profiles
+        }))
       })) || [];
 
       return teams;
@@ -245,14 +249,48 @@ export const supabaseService = {
 
   // Team Members
   async addTeamMember(teamId: string, member: Omit<TeamMember, 'id'>) {
-    const { error } = await supabase
-      .from('team_members')
-      .insert({
-        team_id: teamId,
-        user_id: member.user_id
-      });
+    try {
+      // Check if member already exists
+      const { data: existingMember } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('team_id', teamId)
+        .eq('user_id', member.user_id)
+        .single();
 
-    if (error) throw error;
+      if (existingMember) {
+        throw new Error('You are already a member of this team');
+      }
+
+      // Add member to database
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: teamId,
+          user_id: member.user_id,
+        })
+        .select(`
+          user_id,
+          profiles!inner (
+            id,
+            email,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      return {
+        team_id: teamId,
+        user_id: data.user_id,
+        profile: data.profiles
+      };
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      throw error;
+    }
   },
 
   // Realtime subscriptions
