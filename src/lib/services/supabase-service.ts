@@ -255,6 +255,23 @@ export const supabaseService = {
     if (error) throw error;
   },
 
+  // User Profiles
+  async getUserByEmail(email: string) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, avatar_url')
+        .eq('email', email)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error fetching user by email:', error);
+      return null;
+    }
+  },
+
   // Realtime subscriptions
   subscribeToChanges(table: string, callback: (payload: any) => void) {
     return supabase
