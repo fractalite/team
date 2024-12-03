@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from './supabase';
 
-export type Status = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'ARCHIVED';
 export type Priority = 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+// Task status type that matches database enum
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'ARCHIVED';
 
 export interface Profile {
   id: string;
@@ -25,7 +27,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  status: Status;
+  status: TaskStatus;
   priority: Priority;
   project_id: string;
   assignee_id?: string;
@@ -91,7 +93,7 @@ interface Store {
   deleteTask: (taskId: string) => void;
   deleteCategory: (categoryId: string) => void;
   updateTask: (task: Task) => void;
-  updateTaskStatus: (taskId: string, status: Status) => void;
+  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
   addTeamMember: (teamId: string, member: TeamMember) => void;
   addTaskComment: (taskId: string, comment: Comment) => void;
   deleteTaskComment: (taskId: string, commentId: string) => void;
@@ -140,28 +142,54 @@ export const useStore = create<Store>((set) => ({
     tasks: state.tasks.filter((task) => task.project_id !== projectId),
   })),
   
-  deleteTask: (taskId) => set((state) => ({
-    tasks: state.tasks.filter((task) => task.id !== taskId),
-  })),
+  deleteTask: async (taskId: string) => {
+    try {
+      // Update the task status to ARCHIVED in the database
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          status: 'ARCHIVED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', taskId);
 
-  deleteCategory: (categoryId) => set((state) => ({
-    categories: state.categories.filter((category) => category.id !== categoryId),
-    projects: state.projects.map((project) =>
-      project.category_id === categoryId
-        ? { ...project, category_id: undefined }
-        : project
-    ),
-  })),
-  
+      if (error) throw error;
+
+      // Update local state
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === taskId
+            ? { 
+                ...task, 
+                status: 'ARCHIVED',
+                updated_at: new Date().toISOString()
+              }
+            : task
+        )
+      }));
+    } catch (error) {
+      console.error('Error archiving task:', error);
+    }
+  },
+
+  updateTaskStatus: async (taskId, status) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status })
+      .eq('id', taskId);
+
+    if (!error) {
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === taskId ? { ...task, status } : task
+        ),
+      }));
+    }
+  },
+
   updateTask: (updatedTask) => set((state) => ({
     tasks: state.tasks.map((task) =>
       task.id === updatedTask.id ? { ...task, ...updatedTask } : task
-    ),
-  })),
-  
-  updateTaskStatus: (taskId, status) => set((state) => ({
-    tasks: state.tasks.map((task) =>
-      task.id === taskId ? { ...task, status } : task
     ),
   })),
   

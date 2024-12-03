@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, Priority, Status } from '@/lib/store';
+import { useStore, Priority, TaskStatus } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -62,7 +62,7 @@ export function CreateTaskDialog({ projectId }: CreateTaskDialogProps) {
       const newTask = {
         title: title.trim(),
         description: description.trim(),
-        status: 'TODO' as Status,
+        status: 'TODO' as TaskStatus,
         priority,
         project_id: projectId,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,

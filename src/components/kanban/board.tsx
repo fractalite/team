@@ -12,7 +12,7 @@ import { CreateTaskDialog } from './CreateTaskDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format, isAfter, isBefore, startOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Archive } from 'lucide-react';
@@ -65,25 +65,40 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       index === self.findIndex((m) => m.user_id === member.user_id)
     );
 
-  // Filter tasks
-  const projectTasks = tasks
-    .filter(task => task && task.project_id === projectId && task.status !== 'ARCHIVED');
+  // Get all tasks for this project
+  const projectTasks = tasks.filter(task => task && task.project_id === projectId);
+  
+  // Get active and archived tasks
+  const activeTasks = projectTasks.filter(task => task.status !== 'ARCHIVED');
+  const archivedTasks = projectTasks.filter(task => task.status === 'ARCHIVED');
 
-  // Create columns with filtered tasks
-  const columns = COLUMNS.map(column => {
-    const columnTasks = projectTasks
-      .filter(task => task && task.status === column.id);
-    return {
-      id: column.id,
-      title: column.title,
-      tasks: columnTasks
-    };
-  });
+  // Debug logging
+  useEffect(() => {
+    console.log('Project Tasks:', projectTasks);
+    console.log('Active Tasks:', activeTasks);
+    console.log('Archived Tasks:', archivedTasks);
+  }, [projectTasks]);
 
-  // Get archived tasks count
-  const archivedTasksCount = tasks.filter(
-    task => task.project_id === projectId && task.status === 'ARCHIVED'
-  ).length;
+  // Filter tasks for each status
+  const columns = COLUMNS.map(column => ({
+    id: column.id,
+    title: column.title,
+    tasks: activeTasks.filter(task => 
+      task && 
+      task.status === column.id && 
+      // Priority filter
+      (priorityFilter === 'ALL' || task.priority === priorityFilter) && 
+      // Assignee filter
+      (assigneeFilter === 'ALL' || 
+        (assigneeFilter === 'UNASSIGNED' && !task.assignee_id) || 
+        task.assignee_id === assigneeFilter) && 
+      // Due date filter
+      (dueDateFilter === 'ALL' || 
+        (dueDateFilter === 'OVERDUE' && task.due_date && isBefore(new Date(task.due_date), startOfDay(new Date()))) || 
+        (dueDateFilter === 'TODAY' && task.due_date && format(new Date(task.due_date), 'yyyy-MM-dd') === format(startOfDay(new Date()), 'yyyy-MM-dd')) || 
+        (dueDateFilter === 'UPCOMING' && task.due_date && isAfter(new Date(task.due_date), startOfDay(new Date()))))
+    )
+  }));
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -94,8 +109,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col space-y-4">
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Label htmlFor="priority-filter">Priority</Label>
@@ -152,64 +167,32 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       </div>
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 p-4 overflow-x-auto">
+        <div className="grid grid-cols-4 gap-4">
           {columns.map((column) => (
             <KanbanColumn
               key={column.id}
               title={column.title}
               status={column.id}
-              tasks={column.tasks.filter((task) => {
-                if (!task) return false;
-
-                // Priority filter
-                if (priorityFilter !== 'ALL' && task.priority !== priorityFilter) return false;
-
-                // Assignee filter
-                if (assigneeFilter !== 'ALL') {
-                  if (assigneeFilter === 'UNASSIGNED') {
-                    if (task.assignee_id) return false;
-                  } else {
-                    if (task.assignee_id !== assigneeFilter) return false;
-                  }
-                }
-
-                // Due date filter
-                if (dueDateFilter !== 'ALL' && task.due_date) {
-                  const today = startOfDay(new Date());
-                  const dueDate = new Date(task.due_date);
-
-                  switch (dueDateFilter) {
-                    case 'OVERDUE':
-                      if (!isBefore(dueDate, today)) return false;
-                      break;
-                    case 'TODAY':
-                      if (format(dueDate, 'yyyy-MM-dd') !== format(today, 'yyyy-MM-dd')) return false;
-                      break;
-                    case 'UPCOMING':
-                      if (!isAfter(dueDate, today)) return false;
-                      break;
-                  }
-                }
-
-                return true;
-              })}
+              tasks={column.tasks}
             />
           ))}
         </div>
       </DndContext>
 
-      {archivedTasksCount > 0 && (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => setShowArchived(true)}
-          >
-            <Archive className="w-4 h-4" />
-            View Archived ({archivedTasksCount})
-          </Button>
-        </div>
-      )}
+      {/* Always show archived section, but conditionally show count */}
+      <div className="flex justify-end pt-4 border-t">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+          onClick={() => setShowArchived(true)}
+        >
+          <Archive className="h-4 w-4" />
+          {archivedTasks.length > 0 
+            ? `View Archived Tasks (${archivedTasks.length})`
+            : 'Archived Tasks'}
+        </Button>
+      </div>
 
       <ArchivedTasksDialog
         projectId={projectId}

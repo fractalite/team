@@ -27,7 +27,7 @@ export function TaskCard({ task }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: task.id,
   });
-  const removeTask = useStore((state) => state.removeTask);
+  const deleteTask = useStore((state) => state.deleteTask);
   const profile = useStore((state) => state.profile);
   const { toast } = useToast();
 
@@ -37,18 +37,18 @@ export function TaskCard({ task }: TaskCardProps) {
       }
     : undefined;
 
-  const handleRemove = (e: React.MouseEvent) => {
+  const handleRemove = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      removeTask(task.id);
+      await deleteTask(task.id);
       toast({
         title: "Success",
-        description: "Task removed successfully",
+        description: "Task archived successfully",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to remove task",
+        description: "Failed to archive task",
         variant: "destructive",
       });
     }
